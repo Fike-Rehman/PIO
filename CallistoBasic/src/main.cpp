@@ -83,7 +83,7 @@ void UpdateDHTReadings()
 void blinkPingLED()
 {
   digitalWrite(pingLEDPin, HIGH);
-  delay(1000);
+  delay(3000);
   digitalWrite(pingLEDPin, LOW);  
 }
 
