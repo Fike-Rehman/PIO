@@ -24,7 +24,8 @@ const char WiFiSSID[] = "OCEANLAB";
 const char WiFiPSK[] = "FikeNETBB1972";
 
 const int LEDPIN = 2;
-const int MOSFET_GATE_PIN = 4;
+const int MOSFET_GATE1_PIN = 4; // MOSFET that controls the 12v Puck lights
+const int MOSFET_GATE2_PIN = 5; // MOSFET that controls 5v the dream light
 const int PUSH_BUTTON = 15;
 
 int buttonReading = 0;
@@ -73,12 +74,14 @@ void setup()
 
   pinMode(LEDPIN, OUTPUT);
   pinMode(PUSH_BUTTON, INPUT_PULLDOWN);
-  pinMode(MOSFET_GATE_PIN, OUTPUT);
+  pinMode(MOSFET_GATE1_PIN, OUTPUT);
+  pinMode(MOSFET_GATE2_PIN, OUTPUT);
 
-  // set the LED to off when starting
+  // set the Puck lights and the Dream light to off when starting
   digitalWrite(LEDPIN, LOW);
   int ledOn = false;
-  digitalWrite(MOSFET_GATE_PIN, LOW);
+  digitalWrite(MOSFET_GATE1_PIN, LOW);
+  digitalWrite(MOSFET_GATE2_PIN, LOW);
 }
 
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
@@ -88,13 +91,15 @@ void toggleLights()
   {
     digitalWrite(LEDPIN, LOW);
     ledOn = false;
-    digitalWrite(MOSFET_GATE_PIN, LOW);
+    digitalWrite(MOSFET_GATE1_PIN, LOW);
+    digitalWrite(MOSFET_GATE2_PIN, LOW);
   }
   else
   {
     digitalWrite(LEDPIN, HIGH);
     ledOn = true;
-    digitalWrite(MOSFET_GATE_PIN, HIGH);
+    digitalWrite(MOSFET_GATE1_PIN, HIGH);
+    digitalWrite(MOSFET_GATE2_PIN, HIGH);
   }
 }
 
@@ -125,7 +130,7 @@ void loop()
     return;
   }
 
-  Serial.println("Web Server Started!");
+  Serial.println("Web Server running!");
 
   // Prepare the response
   String response = "HTTP/1.1 200 OK\r\n";
