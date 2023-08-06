@@ -12,6 +12,9 @@ Ariel:
     - /Time: Returns the current time in Minneapolis
     - /Status: Returns the current status of the lights (on or off)
 
+  History:
+    8/6/2023: Added code to control the Puck lights and the Dream light
+
 *****************/
 
 #include <Arduino.h>
