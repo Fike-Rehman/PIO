@@ -21,20 +21,26 @@ Ariel:
 #include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <FastLED.h>
 
 // WiFi Definitions
 const char WiFiSSID[] = "OCEANLAB";
 const char WiFiPSK[] = "FikeNETBB1972";
 
-const int LEDPIN = 2;
+const int INDICTOR_LED_PIN = 2; // indicater LED
 const int MOSFET_GATE1_PIN = 4; // MOSFET that controls the 12v Puck lights
 const int MOSFET_GATE2_PIN = 5; // MOSFET that controls 5v the dream light
 const int PUSH_BUTTON = 15;
 
+const int LED_STRIP_PIN = 18; // pin for the LED strip
+const int NUM_LEDS = 24;      // number of LEDs in the strip
+
 int buttonReading = 0;
 int lastButtonReading = 0;
 
-boolean ledOn = false;
+boolean lightsOn = false;
+
+CRGB ariel_LEDs[NUM_LEDS] = {0};
 
 WiFiServer server(80);
 
@@ -75,32 +81,36 @@ void setup()
   // set time offset in seconds to adjust for your timezone, Central Standard Time is UTC -5 hours
   timeClient.setTimeOffset(-18000);
 
-  pinMode(LEDPIN, OUTPUT);
+  pinMode(INDICTOR_LED_PIN, OUTPUT);
   pinMode(PUSH_BUTTON, INPUT_PULLDOWN);
   pinMode(MOSFET_GATE1_PIN, OUTPUT);
   pinMode(MOSFET_GATE2_PIN, OUTPUT);
+  pinMode(LED_STRIP_PIN, OUTPUT);
 
   // set the Puck lights and the Dream light to off when starting
-  digitalWrite(LEDPIN, LOW);
-  int ledOn = false;
+  digitalWrite(INDICTOR_LED_PIN, LOW);
+  lightsOn = false;
   digitalWrite(MOSFET_GATE1_PIN, LOW);
   digitalWrite(MOSFET_GATE2_PIN, LOW);
+
+  FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS); // add LED's to the FastLED library
+  FastLED.setBrightness(16);                                          // set the brightness of the LED's
 }
 
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
 void toggleLights()
 {
-  if (ledOn)
+  if (lightsOn)
   {
-    digitalWrite(LEDPIN, LOW);
-    ledOn = false;
+    digitalWrite(INDICTOR_LED_PIN, LOW);
+    lightsOn = false;
     digitalWrite(MOSFET_GATE1_PIN, LOW);
     digitalWrite(MOSFET_GATE2_PIN, LOW);
   }
   else
   {
-    digitalWrite(LEDPIN, HIGH);
-    ledOn = true;
+    digitalWrite(INDICTOR_LED_PIN, HIGH);
+    lightsOn = true;
     digitalWrite(MOSFET_GATE1_PIN, HIGH);
     digitalWrite(MOSFET_GATE2_PIN, HIGH);
   }
@@ -122,10 +132,16 @@ void MonitorButtonPress()
   lastButtonReading = buttonReading;
 }
 
+void RefreshLEDs()
+{
+  fill_solid(ariel_LEDs, NUM_LEDS, CRGB::Green); // fill the LED's with the color green
+}
+
 void loop()
 {
   timeClient.update();
   MonitorButtonPress();
+  RefreshLEDs();
 
   WiFiClient client = server.available(); // Listen for incoming clients
   if (!client)
@@ -153,7 +169,7 @@ void loop()
   else if (request.indexOf("/Lights") != -1)
   { // Lights toggle request
     toggleLights();
-    response += "Lights toggled " + String(ledOn ? "ON" : "OFF") + " at " + timeClient.getFormattedTime() + "\r\n";
+    response += "Lights toggled " + String(lightsOn ? "ON" : "OFF") + " at " + timeClient.getFormattedTime() + "\r\n";
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
@@ -161,7 +177,7 @@ void loop()
   }
   else if (request.indexOf("/Status") != -1)
   { // Status request
-    response += "Lights are " + String(ledOn ? "ON" : "OFF") + "\r\n";
+    response += "Lights are " + String(lightsOn ? "ON" : "OFF") + "\r\n";
   }
   else
   {
