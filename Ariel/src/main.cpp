@@ -33,7 +33,7 @@ const int MOSFET_GATE2_PIN = 5; // MOSFET that controls 5v the dream light
 const int PUSH_BUTTON = 15;
 
 const int LED_STRIP_PIN = 18; // pin for the LED strip
-const int NUM_LEDS = 24;      // number of LEDs in the strip
+const int NUM_LEDS = 23;      // number of LEDs in the strip
 
 int buttonReading = 0;
 int lastButtonReading = 0;
@@ -94,7 +94,7 @@ void setup()
   digitalWrite(MOSFET_GATE2_PIN, LOW);
 
   FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS); // add LED's to the FastLED library
-  FastLED.setBrightness(16);                                          // set the brightness of the LED's
+  FastLED.setBrightness(32);                                          // set the brightness of the LED's
 }
 
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
@@ -135,6 +135,8 @@ void MonitorButtonPress()
 void RefreshLEDs()
 {
   fill_solid(ariel_LEDs, NUM_LEDS, CRGB::Green); // fill the LED's with the color green
+
+  FastLED.show(); // show the LED's
 }
 
 void loop()
