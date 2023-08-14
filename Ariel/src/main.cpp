@@ -39,6 +39,7 @@ int buttonReading = 0;
 int lastButtonReading = 0;
 
 boolean lightsOn = false;
+CRGB ledSolidColor = CRGB::Green; // default color, LED's are off
 
 CRGB ariel_LEDs[NUM_LEDS] = {0};
 
@@ -97,6 +98,12 @@ void setup()
   FastLED.setBrightness(32);                                          // set the brightness of the LED's
 }
 
+void SetSolidColor(CRGB color)
+{
+  fill_solid(ariel_LEDs, NUM_LEDS, color); // fill the LED's with the color green
+  FastLED.show(); // show the LED's
+}
+
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
 void toggleLights()
 {
@@ -106,6 +113,7 @@ void toggleLights()
     lightsOn = false;
     digitalWrite(MOSFET_GATE1_PIN, LOW);
     digitalWrite(MOSFET_GATE2_PIN, LOW);
+    SetSolidColor(CRGB::Black);
   }
   else
   {
@@ -113,6 +121,7 @@ void toggleLights()
     lightsOn = true;
     digitalWrite(MOSFET_GATE1_PIN, HIGH);
     digitalWrite(MOSFET_GATE2_PIN, HIGH);
+    SetSolidColor(ledSolidColor);
   }
 }
 
@@ -132,19 +141,25 @@ void MonitorButtonPress()
   lastButtonReading = buttonReading;
 }
 
-void RefreshLEDs()
-{
-  fill_solid(ariel_LEDs, NUM_LEDS, CRGB::Green); // fill the LED's with the color green
-
-  FastLED.show(); // show the LED's
+CRGB getColorFromString(const String &colorStr) {
+  if (colorStr.equalsIgnoreCase("red")) {
+    return CRGB::Red;
+  } else if (colorStr.equalsIgnoreCase("green")) {
+    return CRGB::Green;
+  } else if (colorStr.equalsIgnoreCase("blue")) {
+    return CRGB::Blue;
+  } else if (colorStr.equalsIgnoreCase("yellow")) {
+    return CRGB::Yellow;
+  } else {
+    return CRGB::Black; // Default color if not recognized
+  }
 }
 
 void loop()
 {
   timeClient.update();
   MonitorButtonPress();
-  RefreshLEDs();
-
+  
   WiFiClient client = server.available(); // Listen for incoming clients
   if (!client)
   {
@@ -172,6 +187,19 @@ void loop()
   { // Lights toggle request
     toggleLights();
     response += "Lights toggled " + String(lightsOn ? "ON" : "OFF") + " at " + timeClient.getFormattedTime() + "\r\n";
+  }
+  else if (request.indexOf("/setSolidColor") != -1)
+  {
+    // parse param value and set the solid color
+    int paramIndex = request.indexOf("?color=");
+            if (paramIndex != -1) 
+            {
+              String colorValue = request.substring(paramIndex + 7);
+              ledSolidColor = getColorFromString(colorValue);
+              // TODO:
+              SetSolidColor(ledSolidColor);
+            }
+    response += "LED's Set to Solid Color: at " + timeClient.getFormattedTime() + "\r\n";
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
