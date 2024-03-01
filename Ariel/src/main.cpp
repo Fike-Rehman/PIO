@@ -35,6 +35,9 @@ const int PUSH_BUTTON = 15;
 const int LED_STRIP_PIN = 18; // pin for the LED strip
 const int NUM_LEDS = 23;      // number of LEDs in the strip
 
+const int MAX_LED_VOLTS = 5; // Max volts for LED strip
+const int MAX_LED_AMPS = 4000; // max current draw in milliamps
+
 int buttonReading = 0;
 int lastButtonReading = 0;
 
@@ -95,13 +98,34 @@ void setup()
   digitalWrite(MOSFET_GATE2_PIN, LOW);
 
   FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS); // add LED's to the FastLED library
-  FastLED.setBrightness(32);                                          // set the brightness of the LED's
+  FastLED.setMaxPowerInVoltsAndMilliamps(MAX_LED_VOLTS, MAX_LED_AMPS); // limit power settings
+  FastLED.setBrightness(128);                                          // set the brightness of the LED's
 }
 
 void SetSolidColor(CRGB color)
 {
   fill_solid(ariel_LEDs, NUM_LEDS, color); // fill the LED's with the color green
   FastLED.show(); // show the LED's
+}
+
+void KnightRider(CRGB color)
+{
+  SetSolidColor(CRGB::Black);
+  for (int i=0; i<NUM_LEDS; i++)
+  {
+    ariel_LEDs[i] = color;
+    FastLED.show();
+    delay(100);
+  }
+
+  SetSolidColor(CRGB::Black);
+  //decrements down from end of lights
+  for (int i=NUM_LEDS - 1; i>=0; i--) 
+  {
+    ariel_LEDs[i] = color;
+    FastLED.show();
+    delay(100); //even shorter delay this time
+  }
 }
 
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
@@ -148,9 +172,62 @@ CRGB getColorFromString(const String &colorStr) {
     return CRGB::Green;
   } else if (colorStr.equalsIgnoreCase("blue")) {
     return CRGB::Blue;
-  } else if (colorStr.equalsIgnoreCase("yellow")) {
-    return CRGB::Yellow;
-  } else {
+  // } else if (colorStr.equalsIgnoreCase("yellow")) {
+  //   return CRGB::Yellow;
+  } else if (colorStr.equalsIgnoreCase("magenta")) {
+    return CRGB::Magenta;
+  } else if (colorStr.equalsIgnoreCase("cyan")) {
+    return CRGB::Cyan;
+  } else if (colorStr.equalsIgnoreCase("red")) {
+    return CRGB::Red;
+  // } else if (colorStr.equalsIgnoreCase("orange")) {
+  //   return CRGB::Orange;
+  } else if (colorStr.equalsIgnoreCase("purple")) {
+    return CRGB::Purple;
+  // } else if (colorStr.equalsIgnoreCase("pink")) {
+  //   return CRGB::Pink;
+  } else if (colorStr.equalsIgnoreCase("lime")) {
+    return CRGB::Lime; 
+  } else if (colorStr.equalsIgnoreCase("teal")) {
+    return CRGB::Teal; 
+  // } else if (colorStr.equalsIgnoreCase("violet")) {
+  //   return CRGB::Violet; 
+  } else if (colorStr.equalsIgnoreCase("indigo")) {
+    return CRGB::Indigo; 
+  } else if (colorStr.equalsIgnoreCase("chartreuse")) {
+    return CRGB::Chartreuse; 
+  // } else if (colorStr.equalsIgnoreCase("brown")) {
+  //   return CRGB::Brown; 
+  // } else if (colorStr.equalsIgnoreCase("gold")) {
+  //   return CRGB::Gold; 
+  } else if (colorStr.equalsIgnoreCase("silver")) {
+    return CRGB::Silver; 
+  } else if (colorStr.equalsIgnoreCase("slateGray")) {
+    return CRGB::SlateGray; 
+  } else if (colorStr.equalsIgnoreCase("darkSlateGray")) {
+    return CRGB::DarkSlateGray; 
+  } else if (colorStr.equalsIgnoreCase("seaGreen")) {
+    return CRGB::SeaGreen; 
+  } else if (colorStr.equalsIgnoreCase("darkGreen")) {
+    return CRGB::DarkGreen; 
+  } else if (colorStr.equalsIgnoreCase("skyBlue")) {
+     return CRGB::SkyBlue; 
+  } else if (colorStr.equalsIgnoreCase("deepSkyBlue")) {
+     return CRGB::DeepSkyBlue; 
+  } else if (colorStr.equalsIgnoreCase("aquamarine")) {
+     return CRGB::Aquamarine; 
+  } else if (colorStr.equalsIgnoreCase("powderBlue")) {
+     return CRGB::PowderBlue; 
+  } else if (colorStr.equalsIgnoreCase("blueViolet")) {
+     return CRGB::BlueViolet; 
+  } else if (colorStr.equalsIgnoreCase("darkViolet")) {
+     return CRGB::DarkViolet; 
+  } else if (colorStr.equalsIgnoreCase("mediumVioletRed")) {
+     return CRGB::MediumVioletRed; 
+  } else if (colorStr.equalsIgnoreCase("orchid")) {
+     return CRGB::Orchid; 
+  }
+  else {
     return CRGB::Black; // Default color if not recognized
   }
 }
@@ -188,18 +265,49 @@ void loop()
     toggleLights();
     response += "Lights toggled " + String(lightsOn ? "ON" : "OFF") + " at " + timeClient.getFormattedTime() + "\r\n";
   }
-  else if (request.indexOf("/setSolidColor") != -1)
+  else if (request.indexOf("setSolidColor?color=") != -1)
   {
-    // parse param value and set the solid color
-    int paramIndex = request.indexOf("?color=");
-            if (paramIndex != -1) 
-            {
-              String colorValue = request.substring(paramIndex + 7);
-              ledSolidColor = getColorFromString(colorValue);
-              // TODO:
-              SetSolidColor(ledSolidColor);
-            }
-    response += "LED's Set to Solid Color: at " + timeClient.getFormattedTime() + "\r\n";
+     request.replace("%22", "\""); // replace URL encoded double qoutes with actual double qoutes
+     int paramIndex = request.indexOf("color=");
+      
+    if (paramIndex != -1) 
+    {
+      int colorValueStart = paramIndex + 7; // Length of "color=" is 7, but we add 1 for end double qoutes
+      int colorValueEnd = request.indexOf("\"", colorValueStart);
+    
+      // If a closing double quote is found
+      if (colorValueEnd != -1) 
+      {
+        // Extract the color value
+        String colorValue = request.substring(colorValueStart, colorValueEnd);
+        
+        // set the LED's to new color value
+        ledSolidColor = getColorFromString(colorValue);
+        SetSolidColor(ledSolidColor);
+        response += "LED's Set to Solid Color: " + colorValue + " at " + timeClient.getFormattedTime() + "\r\n";
+      }
+    }
+    else
+    {
+      response += "LED's Set to Solid Color bad request parameter";
+    } 
+  }
+  else if(request.indexOf("/KnightRider") != -1)
+  {
+    response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
+
+    while(true)
+    {
+      KnightRider(ledSolidColor);
+
+      MonitorButtonPress();
+
+      if(lightsOn == false)
+      {
+        Serial.println("exiting out of Knight Rider");
+        break;  
+      }
+    }   
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
