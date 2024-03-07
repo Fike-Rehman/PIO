@@ -46,6 +46,12 @@ CRGB ledSolidColor = CRGB::Green; // default color, LED's are off
 
 CRGB ariel_LEDs[NUM_LEDS] = {0};
 
+unsigned long taskStartTime = 0;
+const long interval = 3000;  
+
+bool runKnightRider = false;
+bool stopKnightRider = false;
+
 WiFiServer server(80);
 
 WiFiUDP ntpUDP;
@@ -115,7 +121,7 @@ void KnightRider(CRGB color)
   {
     ariel_LEDs[i] = color;
     FastLED.show();
-    delay(100);
+    delay(50);
   }
 
   SetSolidColor(CRGB::Black);
@@ -124,8 +130,10 @@ void KnightRider(CRGB color)
   {
     ariel_LEDs[i] = color;
     FastLED.show();
-    delay(100); //even shorter delay this time
+    delay(50); //even shorter delay this time
   }
+
+  Serial.println("Knight Rider cycle complete");
 }
 
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
@@ -232,6 +240,25 @@ CRGB getColorFromString(const String &colorStr) {
   }
 }
 
+void runKnightRiderTask() 
+{
+ // unsigned long currentMillis = millis();
+
+  if(runKnightRider)
+  {
+   // runKnightRider = false;
+  
+    while(!stopKnightRider && millis() - taskStartTime < interval)
+    {
+      KnightRider(CRGB::Green);
+    }
+  }
+
+  stopKnightRider = false; 
+
+  taskStartTime = millis();
+}
+
 void loop()
 {
   timeClient.update();
@@ -294,20 +321,15 @@ void loop()
   }
   else if(request.indexOf("/KnightRider") != -1)
   {
-    response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
-
-    while(true)
-    {
-      KnightRider(ledSolidColor);
-
-      MonitorButtonPress();
-
-      if(lightsOn == false)
-      {
-        Serial.println("exiting out of Knight Rider");
-        break;  
-      }
-    }   
+    runKnightRider = true;
+    stopKnightRider = false;
+    taskStartTime = millis();
+    response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n"; 
+  }
+  else if(request.indexOf("/StopKnightRider") != -1)
+  {
+    stopKnightRider = true;
+    response += "Knight Rider LED effect stopped at " + timeClient.getFormattedTime() + "\r\n"; 
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
@@ -326,4 +348,8 @@ void loop()
   client.print(response);
   delay(1);
   Serial.println("Client disonnected");
+
+  runKnightRiderTask();
+  Serial.println("Task Status running?");
+  Serial.println(runKnightRider);
 }
