@@ -1,2 +1,5 @@
 Ariel/.vscode/extensions.json
 Ariel/.vscode/settings.json
+Ariel/include/config.h
+CallistoBasic/include/config.h
+OberonSONOFF/include/config.h
