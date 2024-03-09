@@ -47,9 +47,6 @@ CRGB ariel_LEDs[NUM_LEDS] = {0};
 unsigned long taskStartTime = 0;
 const long interval = 3000;
 
-bool runKnightRider = false;
-bool stopKnightRider = false;
-
 WiFiServer server(80);
 
 WiFiUDP ntpUDP;
@@ -77,33 +74,6 @@ void connectWiFi()
   Serial.println("WiFi connected");
   Serial.print("Local IP address: ");
   Serial.println(WiFi.localIP());
-}
-
-void setup()
-{
-  Serial.begin(115200);
-  connectWiFi();
-  server.begin();
-
-  timeClient.begin();
-  // set time offset in seconds to adjust for your timezone, Central Standard Time is UTC -5 hours
-  timeClient.setTimeOffset(-18000);
-
-  pinMode(INDICTOR_LED_PIN, OUTPUT);
-  pinMode(PUSH_BUTTON, INPUT_PULLDOWN);
-  pinMode(MOSFET_GATE1_PIN, OUTPUT);
-  pinMode(MOSFET_GATE2_PIN, OUTPUT);
-  pinMode(LED_STRIP_PIN, OUTPUT);
-
-  // set the Puck lights and the Dream light to off when starting
-  digitalWrite(INDICTOR_LED_PIN, LOW);
-  lightsOn = false;
-  digitalWrite(MOSFET_GATE1_PIN, LOW);
-  digitalWrite(MOSFET_GATE2_PIN, LOW);
-
-  FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS);  // add LED's to the FastLED library
-  FastLED.setMaxPowerInVoltsAndMilliamps(MAX_LED_VOLTS, MAX_LED_AMPS); // limit power settings
-  FastLED.setBrightness(128);                                          // set the brightness of the LED's
 }
 
 void SetSolidColor(CRGB color)
@@ -171,30 +141,8 @@ void MonitorButtonPress()
   lastButtonReading = buttonReading;
 }
 
-void runKnightRiderTask()
+void HandleHTTPRequest()
 {
-  // unsigned long currentMillis = millis();
-
-  if (runKnightRider)
-  {
-    // runKnightRider = false;
-
-    while (!stopKnightRider && millis() - taskStartTime < interval)
-    {
-      KnightRider(CRGB::Green);
-    }
-  }
-
-  stopKnightRider = false;
-
-  taskStartTime = millis();
-}
-
-void loop()
-{
-  timeClient.update();
-  MonitorButtonPress();
-
   WiFiClient client = server.available(); // Listen for incoming clients
   if (!client)
   {
@@ -252,20 +200,8 @@ void loop()
   }
   else if (request.indexOf("/KnightRider") != -1)
   {
+    // TODO: set Knightrider task here:
     response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
-
-    while (true)
-    {
-      KnightRider(ledSolidColor);
-
-      MonitorButtonPress();
-
-      if (lightsOn == false)
-      {
-        Serial.println("exiting out of Knight Rider");
-        break;
-      }
-    }
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
@@ -284,8 +220,38 @@ void loop()
   client.print(response);
   delay(1);
   Serial.println("Client disonnected");
+}
 
-  runKnightRiderTask();
-  Serial.println("Task Status running?");
-  Serial.println(runKnightRider);
+void setup()
+{
+  Serial.begin(115200);
+  connectWiFi();
+  server.begin();
+
+  timeClient.begin();
+  // set time offset in seconds to adjust for your timezone, Central Standard Time is UTC -5 hours
+  timeClient.setTimeOffset(-18000);
+
+  pinMode(INDICTOR_LED_PIN, OUTPUT);
+  pinMode(PUSH_BUTTON, INPUT_PULLDOWN);
+  pinMode(MOSFET_GATE1_PIN, OUTPUT);
+  pinMode(MOSFET_GATE2_PIN, OUTPUT);
+  pinMode(LED_STRIP_PIN, OUTPUT);
+
+  // set the Puck lights and the Dream light to off when starting
+  digitalWrite(INDICTOR_LED_PIN, LOW);
+  lightsOn = false;
+  digitalWrite(MOSFET_GATE1_PIN, LOW);
+  digitalWrite(MOSFET_GATE2_PIN, LOW);
+
+  FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS);  // add LED's to the FastLED library
+  FastLED.setMaxPowerInVoltsAndMilliamps(MAX_LED_VOLTS, MAX_LED_AMPS); // limit power settings
+  FastLED.setBrightness(128);                                          // set the brightness of the LED's
+}
+
+void loop()
+{
+  timeClient.update();
+  MonitorButtonPress();
+  HandleHTTPRequest();
 }
