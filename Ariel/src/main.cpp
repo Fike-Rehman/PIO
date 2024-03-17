@@ -25,6 +25,7 @@ Ariel:
 #include <FastLED.h>
 #include <FastLEDHelper.h>
 
+
 const int INDICTOR_LED_PIN = 2; // indicater LED
 const int MOSFET_GATE1_PIN = 4; // MOSFET that controls the 12v Puck lights
 const int MOSFET_GATE2_PIN = 5; // MOSFET that controls 5v the dream light
@@ -44,13 +45,16 @@ CRGB ledSolidColor = CRGB::Green; // default color, LED's are off
 
 CRGB ariel_LEDs[NUM_LEDS] = {0};
 
-unsigned long taskStartTime = 0;
-const long interval = 3000;
-
 WiFiServer server(80);
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
+
+// Task handles
+TaskHandle_t SetLEDPatternTask;
+
+// initialize Ariel LED pattern
+int arielLEDPattern = 0;  // LED strip off
 
 void connectWiFi()
 {
@@ -89,7 +93,7 @@ void KnightRider(CRGB color)
   {
     ariel_LEDs[i] = color;
     FastLED.show();
-    delay(50);
+    vTaskDelay(50);
   }
 
   SetSolidColor(CRGB::Black);
@@ -98,7 +102,7 @@ void KnightRider(CRGB color)
   {
     ariel_LEDs[i] = color;
     FastLED.show();
-    delay(100); // even shorter delay this time
+    vTaskDelay(50); 
   }
 
   Serial.println("Knight Rider cycle complete");
@@ -113,7 +117,7 @@ void toggleLights()
     lightsOn = false;
     digitalWrite(MOSFET_GATE1_PIN, LOW);
     digitalWrite(MOSFET_GATE2_PIN, LOW);
-    SetSolidColor(CRGB::Black);
+  //  SetSolidColor(CRGB::Black);
   }
   else
   {
@@ -121,14 +125,14 @@ void toggleLights()
     lightsOn = true;
     digitalWrite(MOSFET_GATE1_PIN, HIGH);
     digitalWrite(MOSFET_GATE2_PIN, HIGH);
-    SetSolidColor(ledSolidColor);
+  //  SetSolidColor(ledSolidColor);
   }
 }
 
 void MonitorButtonPress()
 {
   buttonReading = digitalRead(PUSH_BUTTON);
-
+  
   if (buttonReading != lastButtonReading)
   {
     if (buttonReading == HIGH)
@@ -201,7 +205,9 @@ void HandleHTTPRequest()
   else if (request.indexOf("/KnightRider") != -1)
   {
     // TODO: set Knightrider task here:
+    arielLEDPattern = 1;
     response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
+
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
@@ -220,6 +226,26 @@ void HandleHTTPRequest()
   client.print(response);
   delay(1);
   Serial.println("Client disonnected");
+}
+
+void SetLEDPattern(void * parameter)
+{
+  // It must run forever, so this is the construct
+  while(1)
+  {
+    Serial.print("Running on core: ");
+    Serial.println(xPortGetCoreID());
+
+    if(arielLEDPattern == 0)
+    {
+      SetSolidColor(CRGB::Black); // turn the led strip off
+    }
+    else if(arielLEDPattern == 1) // Knight rider pattern requested
+    {
+      KnightRider(CRGB::Green);
+    }
+    vTaskDelay(500);
+  }
 }
 
 void setup()
@@ -246,12 +272,34 @@ void setup()
 
   FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS);  // add LED's to the FastLED library
   FastLED.setMaxPowerInVoltsAndMilliamps(MAX_LED_VOLTS, MAX_LED_AMPS); // limit power settings
-  FastLED.setBrightness(128);                                          // set the brightness of the LED's
+  FastLED.setBrightness(128);                                         // set the brightness of the LED's
+
+  xTaskCreatePinnedToCore(
+      SetLEDPattern,    /* Function to implement the task */
+      "SetLEDPatternTask",  /* Name of the task */
+      1024,     /* Stack size in words */
+      NULL,    /* Task input parameter */
+      0,        /* Priority of the task */
+      &SetLEDPatternTask,   /* Task handle. */
+      0);       /* Core where the task should run */
+
+  Serial.println("Setup completed.");
 }
 
 void loop()
 {
+  Serial.print("Running on core: ");
+  Serial.println(xPortGetCoreID());
+
   timeClient.update();
   MonitorButtonPress();
   HandleHTTPRequest();
+
+// This delay is important. It allows our tasks run 
+// smoothly on two cores
+ delay(500); 
 }
+
+
+
+
