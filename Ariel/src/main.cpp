@@ -22,9 +22,7 @@ Ariel:
 #include <config.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <FastLED.h>
-#include <FastLEDHelper.h>
-
+#include <arielPatterns.h>
 
 const int INDICTOR_LED_PIN = 2; // indicater LED
 const int MOSFET_GATE1_PIN = 4; // MOSFET that controls the 12v Puck lights
@@ -32,7 +30,6 @@ const int MOSFET_GATE2_PIN = 5; // MOSFET that controls 5v the dream light
 const int PUSH_BUTTON = 15;
 
 const int LED_STRIP_PIN = 18; // pin for the LED strip
-const int NUM_LEDS = 23;      // number of LEDs in the strip
 
 const int MAX_LED_VOLTS = 5;   // Max volts for LED strip
 const int MAX_LED_AMPS = 4000; // max current draw in milliamps
@@ -41,9 +38,6 @@ int buttonReading = 0;
 int lastButtonReading = 0;
 
 boolean lightsOn = false;
-CRGB ledSolidColor = CRGB::Green; // default color, LED's are off
-
-CRGB ariel_LEDs[NUM_LEDS] = {0};
 
 WiFiServer server(80);
 
@@ -53,9 +47,7 @@ NTPClient timeClient(ntpUDP);
 // Task handles
 TaskHandle_t SetLEDPatternTask;
 
-// initialize Ariel LED pattern
-int arielLEDPattern = 0;  // LED strip off
-
+// =============================== connectWifi ========================================
 void connectWiFi()
 {
   Serial.println("Connecting to: " + String(WiFiSSID));
@@ -80,34 +72,7 @@ void connectWiFi()
   Serial.println(WiFi.localIP());
 }
 
-void SetSolidColor(CRGB color)
-{
-  fill_solid(ariel_LEDs, NUM_LEDS, color); // fill the LED's with the color green
-  FastLED.show();                          // show the LED's
-}
-
-void KnightRider(CRGB color)
-{
-  SetSolidColor(CRGB::Black);
-  for (int i = 0; i < NUM_LEDS; i++)
-  {
-    ariel_LEDs[i] = color;
-    FastLED.show();
-    vTaskDelay(50);
-  }
-
-  SetSolidColor(CRGB::Black);
-  // decrements down from end of lights
-  for (int i = NUM_LEDS - 1; i >= 0; i--)
-  {
-    ariel_LEDs[i] = color;
-    FastLED.show();
-    vTaskDelay(50); 
-  }
-
-  Serial.println("Knight Rider cycle complete");
-}
-
+// ================================== toggleLights ===================================
 // toggles the shelf lights on and off (controls both the LED Pin and the MOSFET gate)
 void toggleLights()
 {
@@ -117,7 +82,6 @@ void toggleLights()
     lightsOn = false;
     digitalWrite(MOSFET_GATE1_PIN, LOW);
     digitalWrite(MOSFET_GATE2_PIN, LOW);
-  //  SetSolidColor(CRGB::Black);
   }
   else
   {
@@ -125,14 +89,15 @@ void toggleLights()
     lightsOn = true;
     digitalWrite(MOSFET_GATE1_PIN, HIGH);
     digitalWrite(MOSFET_GATE2_PIN, HIGH);
-  //  SetSolidColor(ledSolidColor);
   }
 }
 
-void MonitorButtonPress()
+// ============================== monitorButtonPress =========================================
+// monitors the hard button press on the Ariel board to turn on/ off shelf and dream lights
+void monitorButtonPress()
 {
   buttonReading = digitalRead(PUSH_BUTTON);
-  
+
   if (buttonReading != lastButtonReading)
   {
     if (buttonReading == HIGH)
@@ -145,7 +110,9 @@ void MonitorButtonPress()
   lastButtonReading = buttonReading;
 }
 
-void HandleHTTPRequest()
+// =========================== handleHttpRequest ===============================================
+// looks for the incoming HTTP requests on the web server and returns a reponse to each request
+void handleHTTPRequest()
 {
   WiFiClient client = server.available(); // Listen for incoming clients
   if (!client)
@@ -175,7 +142,7 @@ void HandleHTTPRequest()
     toggleLights();
     response += "Lights toggled " + String(lightsOn ? "ON" : "OFF") + " at " + timeClient.getFormattedTime() + "\r\n";
   }
-  else if (request.indexOf("setSolidColor?color=") != -1)
+  else if (request.indexOf("/SolidColor?color=") != -1)
   {
     request.replace("%22", "\""); // replace URL encoded double qoutes with actual double qoutes
     int paramIndex = request.indexOf("color=");
@@ -192,8 +159,8 @@ void HandleHTTPRequest()
         String colorValue = request.substring(colorValueStart, colorValueEnd);
 
         // set the LED's to new color value
-        ledSolidColor = getColorFromString(colorValue);
-        SetSolidColor(ledSolidColor);
+        ledSolidColor = getColorFromString(colorValue); // set the value for the solid color
+        arielLEDPattern = STRIP_SOLID_COLOR;            // set LED pattern to solid color
         response += "LED's Set to Solid Color: " + colorValue + " at " + timeClient.getFormattedTime() + "\r\n";
       }
     }
@@ -204,10 +171,8 @@ void HandleHTTPRequest()
   }
   else if (request.indexOf("/KnightRider") != -1)
   {
-    // TODO: set Knightrider task here:
-    arielLEDPattern = 1;
+    arielLEDPattern = STRIP_KNIGHT_RIDER; // set LED pattern to knightRider
     response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
-
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
@@ -228,26 +193,35 @@ void HandleHTTPRequest()
   Serial.println("Client disonnected");
 }
 
-void SetLEDPattern(void * parameter)
+// ========================================= setLEDPattern =============================
+// Sets the pattern to run on the Ariel LED strip based on the value of 'arielLEDPattern' variable
+// Note: this method is executed on its own task on Core 0.
+void setLEDPattern(void *parameter)
 {
-  // It must run forever, so this is the construct
-  while(1)
+  while (1)
   {
     Serial.print("Running on core: ");
     Serial.println(xPortGetCoreID());
 
-    if(arielLEDPattern == 0)
+    if (arielLEDPattern == STRIP_OFF)
     {
-      SetSolidColor(CRGB::Black); // turn the led strip off
+      setSolidColor(CRGB::Black); // turn the led strip off
     }
-    else if(arielLEDPattern == 1) // Knight rider pattern requested
+    else if (arielLEDPattern == STRIP_SOLID_COLOR)
     {
-      KnightRider(CRGB::Green);
+      setSolidColor(ledSolidColor); // turn the led strip off
+    }
+    else if (arielLEDPattern == STRIP_KNIGHT_RIDER) // Knight rider pattern requested
+    {
+      knightRider(ledSolidColor);
     }
     vTaskDelay(500);
   }
 }
 
+// =========================================== setup ===========================================
+// The main entry point for the code. Initializes wifi connection, pin modes, leds strip initial
+// set up etc. Also creates a new task to control patterns on the Ariel LED strip.
 void setup()
 {
   Serial.begin(115200);
@@ -272,34 +246,32 @@ void setup()
 
   FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS);  // add LED's to the FastLED library
   FastLED.setMaxPowerInVoltsAndMilliamps(MAX_LED_VOLTS, MAX_LED_AMPS); // limit power settings
-  FastLED.setBrightness(128);                                         // set the brightness of the LED's
+  FastLED.setBrightness(128);                                          // set the brightness of the LED's
 
   xTaskCreatePinnedToCore(
-      SetLEDPattern,    /* Function to implement the task */
-      "SetLEDPatternTask",  /* Name of the task */
-      1024,     /* Stack size in words */
-      NULL,    /* Task input parameter */
-      0,        /* Priority of the task */
-      &SetLEDPatternTask,   /* Task handle. */
-      0);       /* Core where the task should run */
+      setLEDPattern,       /* Function to implement the task */
+      "SetLEDPatternTask", /* Name of the task */
+      1024,                /* Stack size in words */
+      NULL,                /* Task input parameter */
+      0,                   /* Priority of the task */
+      &SetLEDPatternTask,  /* Task handle. */
+      0);                  /* Core where the task should run */
 
   Serial.println("Setup completed.");
 }
 
+// =========================================== loop ======================================
+// the main loop method.
 void loop()
 {
   Serial.print("Running on core: ");
   Serial.println(xPortGetCoreID());
 
   timeClient.update();
-  MonitorButtonPress();
-  HandleHTTPRequest();
+  monitorButtonPress();
+  handleHTTPRequest();
 
-// This delay is important. It allows our tasks run 
-// smoothly on two cores
- delay(500); 
+  // This delay is important. It allows our tasks run
+  // smoothly on two cores
+  delay(500);
 }
-
-
-
-
