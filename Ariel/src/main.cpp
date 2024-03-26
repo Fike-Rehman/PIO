@@ -215,6 +215,7 @@ void setLEDPattern(void *parameter)
     {
       knightRider(ledSolidColor);
     }
+    
     vTaskDelay(500);
   }
 }
