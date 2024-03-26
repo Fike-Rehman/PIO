@@ -105,7 +105,7 @@ void monitorButtonPress()
       Serial.println("Button Pressed");
       toggleLights();
     }
-    delay(50);
+    vTaskDelay(50);
   }
   lastButtonReading = buttonReading;
 }
@@ -189,7 +189,7 @@ void handleHTTPRequest()
 
   response += "</html>\r\n";
   client.print(response);
-  delay(1);
+  vTaskDelay(1);
   Serial.println("Client disonnected");
 }
 
@@ -273,5 +273,5 @@ void loop()
 
   // This delay is important. It allows our tasks run
   // smoothly on two cores
-  delay(500);
+  vTaskDelay(500);
 }

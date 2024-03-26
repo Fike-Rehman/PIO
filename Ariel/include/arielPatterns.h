@@ -13,9 +13,9 @@
 #include <FastLED.h>
 #include <FastLEDHelper.h>
 
-CRGB ledSolidColor = CRGB::Green; // default color, LED's are off
-const int NUM_LEDS = 23;          // number of LEDs in the Ariel strip
-CRGB ariel_LEDs[NUM_LEDS] = {0};
+const int NUM_LEDS = 23; // number of LEDs in the Ariel strip
+
+CRGB ariel_LEDs[NUM_LEDS] = {0}; // initialize the LED array
 
 enum LEDPattern
 {
@@ -24,8 +24,11 @@ enum LEDPattern
     STRIP_KNIGHT_RIDER
 };
 
+CRGB ledSolidColor = CRGB::Green; // default color, LED's are off
+
+// The following is declared as volatile b/c they are modified and accessed by two different task
 // initialize Ariel LED pattern
-LEDPattern arielLEDPattern = STRIP_OFF; // LED strip off
+volatile LEDPattern arielLEDPattern = STRIP_OFF; // LED strip off
 
 void setSolidColor(CRGB color)
 {
