@@ -160,8 +160,14 @@ void handleHTTPRequest()
 
         // set the LED's to new color value
         ledSolidColor = getColorFromString(colorValue); // set the value for the solid color
-        arielLEDPattern = STRIP_SOLID_COLOR;            // set LED pattern to solid color
-        response += "LED's Set to Solid Color: " + colorValue + " at " + timeClient.getFormattedTime() + "\r\n";
+
+        // need to update our shared variable using semaphore
+        if (xSemaphoreTake(arielLEDPatternSemaphore, portMAX_DELAY) == pdTRUE)
+        {
+          arielLEDPattern = STRIP_SOLID_COLOR; // set LED pattern to solid color
+          response += "LED's Set to Solid Color: " + colorValue + " at " + timeClient.getFormattedTime() + "\r\n";
+          xSemaphoreGive(arielLEDPatternSemaphore);
+        }
       }
     }
     else
@@ -171,8 +177,13 @@ void handleHTTPRequest()
   }
   else if (request.indexOf("/KnightRider") != -1)
   {
-    arielLEDPattern = STRIP_KNIGHT_RIDER; // set LED pattern to knightRider
-    response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
+    // need to update our shared variable using semaphore
+    if (xSemaphoreTake(arielLEDPatternSemaphore, portMAX_DELAY) == pdTRUE)
+    {
+      arielLEDPattern = STRIP_KNIGHT_RIDER; // set LED pattern to knightRider
+      response += "Knight Rider LED effect set at " + timeClient.getFormattedTime() + "\r\n";
+      xSemaphoreGive(arielLEDPatternSemaphore);
+    }
   }
   else if (request.indexOf("/Time") != -1)
   { // Time request
@@ -203,19 +214,30 @@ void setLEDPattern(void *parameter)
     Serial.print("Running on core: ");
     Serial.println(xPortGetCoreID());
 
-    if (arielLEDPattern == STRIP_OFF)
+    LEDPattern currentPattern;
+
+    // need to update our shared variable using semaphore
+    if (xSemaphoreTake(arielLEDPatternSemaphore, portMAX_DELAY) == pdTRUE)
     {
-      setSolidColor(CRGB::Black); // turn the led strip off
+      currentPattern = arielLEDPattern; // what is the current value of pattern
+      Serial.print("Curent LED Pattern value:");
+      Serial.println(currentPattern);
+      xSemaphoreGive(arielLEDPatternSemaphore);
+
+      if (currentPattern == STRIP_OFF)
+      {
+        setSolidColor(CRGB::Black); // turn the led strip off
+      }
+      else if (currentPattern == STRIP_SOLID_COLOR)
+      {
+        setSolidColor(ledSolidColor); // turn the led strip off
+      }
+      else if (currentPattern == STRIP_KNIGHT_RIDER) // Knight rider pattern requested
+      {
+        knightRider(ledSolidColor);
+      }
     }
-    else if (arielLEDPattern == STRIP_SOLID_COLOR)
-    {
-      setSolidColor(ledSolidColor); // turn the led strip off
-    }
-    else if (arielLEDPattern == STRIP_KNIGHT_RIDER) // Knight rider pattern requested
-    {
-      knightRider(ledSolidColor);
-    }
-    
+
     vTaskDelay(500);
   }
 }
@@ -248,6 +270,10 @@ void setup()
   FastLED.addLeds<WS2812B, LED_STRIP_PIN, GRB>(ariel_LEDs, NUM_LEDS);  // add LED's to the FastLED library
   FastLED.setMaxPowerInVoltsAndMilliamps(MAX_LED_VOLTS, MAX_LED_AMPS); // limit power settings
   FastLED.setBrightness(128);                                          // set the brightness of the LED's
+
+  // create the semaphore for arielLEDPattern variable since it is shared
+  // between two tasks:
+  arielLEDPatternSemaphore = xSemaphoreCreateMutex();
 
   xTaskCreatePinnedToCore(
       setLEDPattern,       /* Function to implement the task */
