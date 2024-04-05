@@ -105,7 +105,7 @@ void monitorButtonPress()
       Serial.println("Button Pressed");
       toggleLights();
     }
-    vTaskDelay(50);
+    delay(100);
   }
   lastButtonReading = buttonReading;
 }
@@ -200,7 +200,7 @@ void handleHTTPRequest()
 
   response += "</html>\r\n";
   client.print(response);
-  vTaskDelay(1);
+  delay(25);
   Serial.println("Client disonnected");
 }
 
@@ -209,12 +209,12 @@ void handleHTTPRequest()
 // Note: this method is executed on its own task on Core 0.
 void setLEDPattern(void *parameter)
 {
+  LEDPattern currentPattern;
+
   while (1)
   {
     Serial.print("Running on core: ");
     Serial.println(xPortGetCoreID());
-
-    LEDPattern currentPattern;
 
     // need to update our shared variable using semaphore
     if (xSemaphoreTake(arielLEDPatternSemaphore, portMAX_DELAY) == pdTRUE)
@@ -222,7 +222,6 @@ void setLEDPattern(void *parameter)
       currentPattern = arielLEDPattern; // what is the current value of pattern
       Serial.print("Curent LED Pattern value:");
       Serial.println(currentPattern);
-      xSemaphoreGive(arielLEDPatternSemaphore);
 
       if (currentPattern == STRIP_OFF)
       {
@@ -236,9 +235,10 @@ void setLEDPattern(void *parameter)
       {
         knightRider(ledSolidColor);
       }
+      xSemaphoreGive(arielLEDPatternSemaphore);
     }
 
-    vTaskDelay(500);
+    vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
 
@@ -300,5 +300,5 @@ void loop()
 
   // This delay is important. It allows our tasks run
   // smoothly on two cores
-  vTaskDelay(500);
+  delay(500);
 }

@@ -49,7 +49,7 @@ void knightRider(CRGB color)
   {
     ariel_LEDs[i] = color;
     FastLED.show();
-    vTaskDelay(50);
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 
   setSolidColor(CRGB::Black);
@@ -58,7 +58,7 @@ void knightRider(CRGB color)
   {
     ariel_LEDs[i] = color;
     FastLED.show();
-    vTaskDelay(50);
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 
   Serial.println("Knight Rider cycle complete");
