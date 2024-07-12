@@ -278,7 +278,7 @@ void setup()
   xTaskCreatePinnedToCore(
       setLEDPattern,       /* Function to implement the task */
       "SetLEDPatternTask", /* Name of the task */
-      1024,                /* Stack size in words */
+      2048,                /* Stack size in words */
       NULL,                /* Task input parameter */
       0,                   /* Priority of the task */
       &SetLEDPatternTask,  /* Task handle. */
