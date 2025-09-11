@@ -22,8 +22,6 @@ Miranda:
 #include <ESP8266WiFi.h>
 #include <config.h>
 
-#include <Arduino.h>
-
 // put function declarations here:
 int myFunction(int, int);
 
