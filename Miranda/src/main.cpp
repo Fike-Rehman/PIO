@@ -21,6 +21,8 @@ Miranda:
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <config.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 
@@ -30,12 +32,38 @@ void connectWifi();
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", -18000, 60000); // UTC -5 hours for Minneapolis, update every 60 seconds
 
+// ==== HTTP Server ====
+AsyncWebServer server(80);
+
+ // ==== GPIO ====
+const int MOSFET_PIN = D1;  // GPIO pin to control the MOSFET (D1 on NodeMCU)
+
 
 void setup() {
   Serial.begin(115200);
   delay(100);
 
- connectWifi();
+  connectWifi();
+
+  pinMode(MOSFET_PIN, OUTPUT);
+  digitalWrite(MOSFET_PIN, LOW);  // Start OFF
+
+
+  // ==== HTTP endpoints ====
+  server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
+    digitalWrite(MOSFET_PIN, HIGH);
+    Serial.println("MOSFET 1 ON");
+    request->send(200, "text/plain", "MOSFET ON");
+  });
+
+  server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
+    digitalWrite(MOSFET_PIN, LOW);
+    Serial.println("MOSFET 1 OFF");
+    request->send(200, "text/plain", "MOSFET OFF");
+  });
+
+  server.begin();
+  Serial.println("HTTP server started.");
 
 }
 
