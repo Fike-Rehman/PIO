@@ -62,6 +62,28 @@ void setup() {
     request->send(200, "text/plain", "MOSFET OFF");
   });
 
+  // Ping endpoint
+  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", "pong");
+  });
+
+    // Status endpoint
+  server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
+    String state = (digitalRead(MOSFET_PIN) == HIGH) ? "ON" : "OFF";
+    request->send(200, "application/json", "{\"mosfet\":\"" + state + "\"}");
+
+  });
+
+  // Time endpoint
+  server.on("/time", HTTP_GET, [](AsyncWebServerRequest *request){
+    timeClient.update();
+    String currentTime = timeClient.getFormattedTime();
+    String message = "Current time: " + currentTime;
+    request->send(200, "text/plain", message);
+});
+
+  // ==== end Http endpoints ====
+
   server.begin();
   Serial.println("HTTP server started.");
 
