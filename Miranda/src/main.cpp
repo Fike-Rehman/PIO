@@ -87,11 +87,14 @@ void setup() {
     request->send(200, "text/plain", "pong");
   });
 
-    // Status endpoint
+    // --- Status endpoint ---
   server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-    String state = (digitalRead(MOSFET_PIN_1) == HIGH) ? "ON" : "OFF";
-    request->send(200, "application/json", "{\"mosfet\":\"" + state + "\"}");
-
+    String json = "{";
+    json += "\"M1\":\"" + String(digitalRead(MOSFET_PIN_1) == HIGH ? "ON" : "OFF") + "\",";
+    json += "\"M2\":\"" + String(digitalRead(MOSFET_PIN_2) == HIGH ? "ON" : "OFF") + "\",";
+    json += "\"M3\":\"" + String(digitalRead(MOSFET_PIN_3) == HIGH ? "ON" : "OFF") + "\"";
+    json += "}";
+    request->send(200, "application/json", json);
   });
 
   // Time endpoint
