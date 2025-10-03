@@ -28,6 +28,7 @@ Miranda:
 
 // ====== Function prototypes =====
 void connectWifi();
+void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, const char* mosfetName);
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", -18000, 60000); // UTC -5 hours for Minneapolis, update every 60 seconds
@@ -36,7 +37,9 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", -18000, 60000); // UTC -5 hours for
 AsyncWebServer server(80);
 
  // ==== GPIO ====
-const int MOSFET_PIN = D1;  // GPIO pin to control the MOSFET (D1 on NodeMCU)
+const int MOSFET_PIN_1 = D1;  // GPIO pin to control the MOSFET (D1 on NodeMCU)
+const int MOSFET_PIN_2 = D2;  // GPIO pin to control the MOSFET (D2 on NodeMCU)
+const int MOSFET_PIN_3 = D5;  // GPIO pin to control the MOSFET (D5 on NodeMCU)
 
 
 void setup() {
@@ -45,21 +48,38 @@ void setup() {
 
   connectWifi();
 
-  pinMode(MOSFET_PIN, OUTPUT);
-  digitalWrite(MOSFET_PIN, LOW);  // Start OFF
+  pinMode(MOSFET_PIN_1, OUTPUT);
+  digitalWrite(MOSFET_PIN_1, LOW);  // Start OFF
 
+  pinMode(MOSFET_PIN_2, OUTPUT);
+  digitalWrite(MOSFET_PIN_2, LOW);  // Start OFF
 
-  // ==== HTTP endpoints ====
-  server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(MOSFET_PIN, HIGH);
-    Serial.println("MOSFET 1 ON");
-    request->send(200, "text/plain", "MOSFET ON");
+  pinMode(MOSFET_PIN_3, OUTPUT);
+  digitalWrite(MOSFET_PIN_3, LOW);  // Start OFF
+
+  // --- Endpoints for MOSFET control---
+  // M1
+  server.on("/M1/on", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleMOSFET(request, MOSFET_PIN_1, true, "M1");
+  });
+  server.on("/M1/off", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleMOSFET(request, MOSFET_PIN_1, false, "M1");
   });
 
-  server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(MOSFET_PIN, LOW);
-    Serial.println("MOSFET 1 OFF");
-    request->send(200, "text/plain", "MOSFET OFF");
+  // M2
+  server.on("/M2/on", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleMOSFET(request, MOSFET_PIN_2, true, "M2");
+  });
+  server.on("/M2/off", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleMOSFET(request, MOSFET_PIN_2, false, "M2");
+  });
+
+  // M3
+  server.on("/M3/on", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleMOSFET(request, MOSFET_PIN_3, true, "M3");
+  });
+  server.on("/M3/off", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleMOSFET(request, MOSFET_PIN_3, false, "M3");
   });
 
   // Ping endpoint
@@ -69,7 +89,7 @@ void setup() {
 
     // Status endpoint
   server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-    String state = (digitalRead(MOSFET_PIN) == HIGH) ? "ON" : "OFF";
+    String state = (digitalRead(MOSFET_PIN_1) == HIGH) ? "ON" : "OFF";
     request->send(200, "application/json", "{\"mosfet\":\"" + state + "\"}");
 
   });
@@ -139,4 +159,11 @@ void connectWifi() {
     Serial.println("Failed to get time from NTP server");
   }
   
+}
+
+void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, const char* mosfetName) {
+  digitalWrite(pin, state ? HIGH : LOW);
+  
+ String msg = String(mosfetName) + (state ? " ON" : " OFF");
+  request->send(200, "text/plain", msg);
 }
