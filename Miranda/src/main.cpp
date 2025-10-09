@@ -28,7 +28,7 @@ Miranda:
 
 // ====== Function prototypes =====
 void connectWifi();
-void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, const char* mosfetName);
+void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, String mosfetName);
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", -18000, 60000); // UTC -5 hours for Minneapolis, update every 60 seconds
@@ -164,9 +164,10 @@ void connectWifi() {
   
 }
 
-void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, const char* mosfetName) {
+void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, String mosfetName) {
   digitalWrite(pin, state ? HIGH : LOW);
   
- String msg = String(mosfetName) + (state ? " ON" : " OFF");
+  Serial.printf("Request received for %s -> %s\n", mosfetName.c_str(), state ? "ON" : "OFF");
+  String msg = String(mosfetName) + (state ? " ON" : " OFF");
   request->send(200, "text/plain", msg);
 }
