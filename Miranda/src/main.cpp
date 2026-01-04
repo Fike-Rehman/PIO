@@ -27,11 +27,12 @@ Miranda:
 #include <NTPClient.h>
 
 // ====== Function prototypes =====
+void InitTime();
 void connectWifi();
 void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, String mosfetName);
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", -18000, 60000); // UTC -5 hours for Minneapolis, update every 60 seconds
+NTPClient timeClient(ntpUDP, "pool.ntp.org", -21600, 60000); // UTC -6 hours for Minneapolis, update every 60 seconds
 
 // ==== HTTP Server ====
 AsyncWebServer server(80);
@@ -40,7 +41,6 @@ AsyncWebServer server(80);
 const int MOSFET_PIN_1 = D1;  // GPIO pin to control the MOSFET (D1 on NodeMCU)
 const int MOSFET_PIN_2 = D2;  // GPIO pin to control the MOSFET (D2 on NodeMCU)
 const int MOSFET_PIN_3 = D5;  // GPIO pin to control the MOSFET (D5 on NodeMCU)
-
 
 void setup() {
   Serial.begin(115200);
@@ -87,15 +87,22 @@ void setup() {
     request->send(200, "text/plain", "pong");
   });
 
-    // --- Status endpoint ---
+  // Status endpoint
   server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
-    String json = "{";
-    json += "\"M1\":\"" + String(digitalRead(MOSFET_PIN_1) == HIGH ? "ON" : "OFF") + "\",";
-    json += "\"M2\":\"" + String(digitalRead(MOSFET_PIN_2) == HIGH ? "ON" : "OFF") + "\",";
-    json += "\"M3\":\"" + String(digitalRead(MOSFET_PIN_3) == HIGH ? "ON" : "OFF") + "\"";
-    json += "}";
-    request->send(200, "application/json", json);
-  });
+  char status[64];
+
+  snprintf(
+    status,
+    sizeof(status),
+    "M1=%s\nM2=%s\nM3=%s",
+    digitalRead(MOSFET_PIN_1) == HIGH ? "ON" : "OFF",
+    digitalRead(MOSFET_PIN_2) == HIGH ? "ON" : "OFF",
+    digitalRead(MOSFET_PIN_3) == HIGH ? "ON" : "OFF"
+  );
+
+  request->send(200, "text/plain", status);
+});
+
 
   // Time endpoint
   server.on("/time", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -109,7 +116,6 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started.");
-
 }
 
 void loop() {
@@ -118,6 +124,27 @@ void loop() {
 }
 
 // ===== Function definitions =====
+
+void InitTime()
+{
+  timeClient.begin();
+
+  for (int i = 0; i < 10; i++) {
+    timeClient.update();
+    if (timeClient.getEpochTime() > 1700000000) {
+      break;
+    }
+    delay(500);
+  }
+
+  if (timeClient.getEpochTime() > 1700000000) {
+    Serial.print("Current time (CST): ");
+    Serial.println(timeClient.getFormattedTime());
+  } else {
+    Serial.println("Time not yet available");
+  }
+}
+
 void connectWifi() {
   Serial.println();
   Serial.println("Booting...");
@@ -153,15 +180,7 @@ void connectWifi() {
   Serial.print(WiFi.RSSI());
   Serial.println(" dBm");
 
-  // Initialize and get time
-  timeClient.begin();
-  if (timeClient.forceUpdate()) {
-    Serial.print("Current time (CST): ");
-    Serial.println(timeClient.getFormattedTime());
-  } else {
-    Serial.println("Failed to get time from NTP server");
-  }
-  
+  InitTime();  
 }
 
 void handleMOSFET(AsyncWebServerRequest *request, int pin, bool state, String mosfetName) {
