@@ -1,13 +1,17 @@
 {
-	"folders": [
-		{
-			"name": "CallistoBasic",
-			"path": "CallistoBasic"
-		},
-		{
-			"name": "OberonSONOFF",
-			"path": "OberonSONOFF"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "name": "CallistoBasic",
+      "path": "CallistoBasic"
+    },
+    {
+      "name": "OberonSONOFF",
+      "path": "OberonSONOFF"
+    },
+    {
+      "name": "Enceladus",
+      "path": "Enceladus"
+    }
+  ],
+  "settings": {}
 }
