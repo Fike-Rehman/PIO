@@ -36,9 +36,9 @@ and visually check these four lines:
 
 ```text
 ENCELADUS
-PHASE 1
-OLED OK
-READY
+TEMP: 21 °C
+FLOW RATE: 1.45L
+LEVEL: Low
 ```
 
 The Phase 0 serial heartbeat continues every five seconds. The OLED screen is
@@ -52,16 +52,25 @@ or continued display connectivity.
 - If the device is detected but the image is blank or malformed, verify the
   panel resolution and module power requirements.
 
-The user verified the initial screen is correct and returns after power cycling.
-The 128x64 layout now uses double-size text (12x16 character cells), with four
-16-pixel rows. The user confirmed improved readability but reported fixed uneven
-brightness, particularly in the lower three rows. Hardware diagnosis is pending. After acceptance,
-commit/checkpoint this phase before beginning Phase 2. No sensors or WLED
-functionality have been added.
+The user verified successful startup and power-cycle recovery. Replacing the
+original panel resolved the uneven brightness observed on that panel.
 
-## Display diagnosis status
+The current 128x64 layout keeps ENCELADUS at size 2 (12x16 character cells)
+in the yellow top region. The three sample rows use size 1 with a one-pixel bold overdraw and
+seven-pixel character spacing,
+starting at y=20, 36, and 52 in the cyan region. Values are static layout
+samples, not sensor measurements; no sensor or WLED functionality is included.
+The user approved the bold cyan rows on the replacement panel. The temperature
+sample now includes a degree symbol (CP437 0xF8); its appearance awaits confirmation.
 
-The temporary diagnostic was removed and the large-text Phase 1 screen restored.
-The user reported that stripes looked OK, but letters still had uneven brightness
-in the same areas. A replacement panel comparison is planned; a panel fault is
-not yet confirmed.
+The I2C scan count is named `oledAddressMatchCount` for clarity.
+## Code organization
+
+- `src/main.cpp`: serial startup, display initialization call, and heartbeat.
+- `include/DisplayManager.h`: public `begin()` and `isReady()` declarations.
+- `src/DisplayManager.cpp`: private OLED instance, I2C scan, and screen rendering.
+- `include/DisplayConfig.h`: wiring and panel dimensions.
+
+The display implementation stays in one source file, so including the public
+header does not create additional OLED objects. This separation preserves the
+existing layout, sample values, degree symbol, and bold cyan rows.
